@@ -1,6 +1,6 @@
 # WTI Crude Oil Price Forecasting
 
-> **Reference implementation 3 of 4.** Recommended order: [getting_started](../getting_started/) → [S&P 500](../sp500_forecasting/) → [food CPI](../food_price_forecasting/) → **energy / WTI** → [BoC rate decisions](../boc_rate_decisions/). Each stands on its own.
+> **Reference implementation 3 of 5.** Recommended order: [getting_started](../getting_started/) -> [S&P 500](../sp500_forecasting/) -> [food CPI](../food_price_forecasting/) -> **energy / WTI** -> [BoC rate decisions](../boc_rate_decisions/) -> [copper](../copper_forecasting/). Each stands on its own.
 
 The **high-frequency, context-driven** reference implementation. Unlike long-horizon annual CPI forecasting, the daily resolution of oil markets makes genuinely prospective, real-time evaluation practical: you can lock an agent configuration today and measure its accuracy on unresolved horizons within weeks.
 

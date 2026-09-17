@@ -1,0 +1,19 @@
+spec_id: copper_monthly_backtest
+
+description: >-
+  Quarterly-origin backtest over 2018-2024 for FRED's monthly global copper
+  price. Compares 1, 3, and 6-month probabilistic forecasts using CRPS.
+
+tasks:
+  - task_id: copper_price_forecast
+    target_series_id: global_copper_price_usd_per_metric_ton
+    horizons: [1, 3, 6]
+    frequency: MS
+    description: >-
+      Global monthly copper price in USD per metric ton from FRED PCOPPUSDM,
+      projected 1, 3, and 6 months ahead.
+
+start: "2018-01-01"
+end: "2024-12-01"
+stride: 3
+warmup: 60

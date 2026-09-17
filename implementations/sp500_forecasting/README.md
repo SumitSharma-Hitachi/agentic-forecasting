@@ -1,6 +1,6 @@
 # S&P 500 multivariate forecasting (leak-safe covariates)
 
-> **Reference implementation 1 of 4.** Recommended order: [getting_started](../getting_started/) → **S&P 500** → [food CPI](../food_price_forecasting/) → [energy / WTI](../energy_oil_forecasting/) → [BoC rate decisions](../boc_rate_decisions/). Each stands on its own.
+> **Reference implementation 1 of 5.** Recommended order: [getting_started](../getting_started/) -> **S&P 500** -> [food CPI](../food_price_forecasting/) -> [energy / WTI](../energy_oil_forecasting/) -> [BoC rate decisions](../boc_rate_decisions/) -> [copper](../copper_forecasting/). Each stands on its own.
 
 The **financial-markets** reference: a head-to-head comparison of conventional
 time-series methods on a daily equity index, all reading the **same leak-safe

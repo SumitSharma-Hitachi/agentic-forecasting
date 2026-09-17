@@ -1,6 +1,6 @@
 # BoC Rate Decisions
 
-> **Reference implementation 4 of 4.** Recommended order: [getting_started](../getting_started/) → [S&P 500](../sp500_forecasting/) → [food CPI](../food_price_forecasting/) → [energy / WTI](../energy_oil_forecasting/) → **BoC rate decisions**. Each stands on its own.
+> **Reference implementation 4 of 5.** Recommended order: [getting_started](../getting_started/) -> [S&P 500](../sp500_forecasting/) -> [food CPI](../food_price_forecasting/) -> [energy / WTI](../energy_oil_forecasting/) -> **BoC rate decisions** -> [copper](../copper_forecasting/). Each stands on its own.
 
 Predicts the **direction of the Bank of Canada's decision at the next fixed
 announcement date** — cut, hold, or hike — as a calibrated probability

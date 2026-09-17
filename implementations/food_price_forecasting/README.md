@@ -1,6 +1,6 @@
 # Food Price CPI Forecasting
 
-> **Reference implementation 2 of 4.** Recommended order: [getting_started](../getting_started/) → [S&P 500](../sp500_forecasting/) → **food CPI** → [energy / WTI](../energy_oil_forecasting/) → [BoC rate decisions](../boc_rate_decisions/). Each stands on its own.
+> **Reference implementation 2 of 5.** Recommended order: [getting_started](../getting_started/) -> [S&P 500](../sp500_forecasting/) -> **food CPI** -> [energy / WTI](../energy_oil_forecasting/) -> [BoC rate decisions](../boc_rate_decisions/) -> [copper](../copper_forecasting/). Each stands on its own.
 
 Replicates the **Canada's Food Price Report (CFPR)** forecasting methodology —
 an annual estimate of the year-over-year percentage change in Canadian food

@@ -24,13 +24,15 @@ implementations/
 |   `-- specs/                #     backtest and eval YAML
 |-- boc_rate_decisions/       # 4 · Discrete-event reference: BoC cut/hold/hike direction
 |   `-- specs/                #     direction + binary backtest / eval / smoke YAML
+|-- copper_forecasting/       # 5 · Monthly FRED copper price forecasting
+|   `-- specs/                #     1/3/6-month backtest YAML
 |-- tests/                    # tests for implementation-specific helper modules
 `-- pyproject.toml            # local workspace packaging
 ```
 
 YAML backtest and eval specs live under each use case in `specs/`. Each directory is independent; see its `README.md` for the walkthrough. For the build-phase moves — onboarding data, standing up an experiment, customizing an agent, auditing a result — see [`guides/`](../guides/). To chat with the concierge or a domain starter in the ADK browser UI, see [`guides/05-access-adk-web-via-ssh-tunnel.md`](../guides/05-access-adk-web-via-ssh-tunnel.md) (includes the Coder SSH tunnel).
 
-Every domain use case (all except `getting_started`) also ships a `starter_agent/` module and a `99_starter_agent.ipynb` — a fresh, hackable **starter agent** that is the consistent "build your own" entry point for that use case (toggleable news search + code execution, two lightweight tool-usage skills, an interactive cell, and one scored forecast).
+The four curriculum domain use cases also ship a `starter_agent/` module and a `99_starter_agent.ipynb` — a fresh, hackable **starter agent** that is the consistent "build your own" entry point for those use cases. Copper uses a compact single-notebook workflow with its history-only and news-grounded agent configurations built in.
 
 `getting_started/` additionally ships a **`concierge_agent/`** module and **`99_repo_concierge.ipynb`** — a repo onboarding helper (not a forecaster) that answers questions about how the codebase works using a committed public-`main` knowledge digest. From the repository root: `uv run adk run implementations/getting_started/concierge_agent` (or `uv run adk web implementations/getting_started/concierge_agent` for the browser UI — [guide 5](../guides/05-access-adk-web-via-ssh-tunnel.md)). See [`getting_started/README.md`](getting_started/README.md) and the notebook for full usage.
 

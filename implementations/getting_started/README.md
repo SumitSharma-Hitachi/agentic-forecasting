@@ -186,6 +186,9 @@ what you're building:
 - [`energy_oil_forecasting/`](../energy_oil_forecasting/) — daily prices,
   news-grounded and code-executing agents, and an agent that learns a strategy
   from data.
+- [`copper_forecasting/`](../copper_forecasting/) — a compact monthly FRED
+   commodity workflow with naive and traditional baselines, a cutoff-aware news
+   agent, and backtest-weighted ensembling.
 
 ---
 
