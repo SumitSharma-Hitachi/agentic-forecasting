@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 from aieng.forecasting.evaluation.task import ForecastingTask
+from copper_forecasting.agent import (
+    CopperModelPanelPromptBuilder,
+    build_copper_model_panel_config,
+    build_copper_news_config,
+)
 from copper_forecasting.data import COPPER_SERIES_ID, build_copper_service
 from copper_forecasting.prophet_baseline import CopperProphetPredictor
 
@@ -53,3 +59,53 @@ def test_prophet_forecast_dates_follow_monthly_task(tmp_path: Path) -> None:
         pd.Timestamp("2025-03-01"),
         pd.Timestamp("2025-06-01"),
     ]
+
+
+def test_prophet_minimum_history_is_configurable(tmp_path: Path) -> None:
+    _write_cache(tmp_path, periods=24)
+    service = build_copper_service(tmp_path)
+    task = ForecastingTask(
+        task_id="copper_short_history_test",
+        target_series_id=COPPER_SERIES_ID,
+        horizons=[1, 2, 3, 4, 5, 6],
+        frequency="MS",
+        description="Copper forecast using a fixed two-year input window.",
+    )
+    as_of = pd.Timestamp("2020-12-01")
+
+    predictions = CopperProphetPredictor(min_history=24).predict(task, service.context(as_of=as_of))
+
+    assert len(predictions) == 6
+
+
+def test_model_panel_prompt_uses_results_for_current_cutoff(tmp_path: Path) -> None:
+    _write_cache(tmp_path, periods=24)
+    service = build_copper_service(tmp_path)
+    task = ForecastingTask(
+        task_id="copper_model_panel_test",
+        target_series_id=COPPER_SERIES_ID,
+        horizons=[1, 2],
+        frequency="MS",
+        description="Copper forecast informed by numerical model results.",
+    )
+    as_of = pd.Timestamp("2020-12-01")
+    expected_panel = [{"model": "AutoARIMA", "horizon": 1, "forecast": 8100.0, "past_mae": 250.0}]
+    builder = CopperModelPanelPromptBuilder(model_panels={"2020-12-01": expected_panel})
+
+    payload = json.loads(builder(task=task, context=service.context(as_of=as_of)))
+
+    assert payload["numerical_model_results"] == expected_panel
+    assert "news" not in payload
+
+
+def test_model_panel_agent_has_no_news_retrieval() -> None:
+    config = build_copper_model_panel_config()
+
+    assert config.context_retrieval.enabled is False
+
+
+def test_news_agent_reports_signals_used() -> None:
+    config = build_copper_news_config()
+
+    assert config.context_retrieval.enabled is True
+    assert "Global signals used:" in config.instruction

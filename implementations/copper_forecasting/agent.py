@@ -50,6 +50,27 @@ class CopperForecastPromptBuilder(BaseModel):
         return json.dumps(payload, indent=2)
 
 
+class CopperModelPanelPromptBuilder(BaseModel):
+    """Add cutoff-safe numerical forecasts and past errors to the agent prompt."""
+
+    model_config = {"extra": "forbid"}
+
+    model_panels: dict[str, list[dict[str, Any]]]
+
+    def __call__(self, *, task: ForecastingTask, context: ForecastContext) -> str:
+        payload = json.loads(CopperForecastPromptBuilder()(task=task, context=context))
+        cutoff = str(pd.Timestamp(context.as_of).date())
+        try:
+            payload["numerical_model_results"] = self.model_panels[cutoff]
+        except KeyError as exc:
+            raise KeyError(f"No numerical model results were supplied for cutoff {cutoff}.") from exc
+        payload["numerical_model_results_note"] = (
+            "Each row contains a candidate forecast and, when available, its mean absolute error "
+            "on a six-month check period that ended before the cutoff. No news is included."
+        )
+        return json.dumps(payload, indent=2)
+
+
 def _analyst_instruction() -> str:
     schema = ContinuousAgentForecastOutput.prompt_schema_json()
     return (
@@ -80,7 +101,10 @@ _SEARCH_SUPPLEMENT = """\
 Call `search_web` before forecasting. Pass the payload's `as_of` value unchanged as
 `cutoff_date`. Search separately for (1) copper supply and inventories and (2) China
 demand, the US dollar, and current analyst outlooks. If verification fails, use only
-the supplied history and state that limitation in the rationale.
+the supplied history and state that limitation in the rationale. In the top-level
+rationale, include a `Global signals used:` sentence that names each verified signal,
+its expected upward or downward effect on copper, its source, and its publication
+date. Do not list a signal unless it affected the forecast.
 """
 
 
@@ -109,6 +133,22 @@ def build_copper_news_config(
     )
 
 
+def build_copper_model_panel_config(model: str = LITE_MODEL) -> AgentConfig:
+    """Build a no-news analyst that reviews cutoff-safe numerical model results."""
+    return AgentConfig(
+        name="copper_analyst_model_panel",
+        model=model,
+        instruction=(
+            _analyst_instruction()
+            + "\n\nReview `numerical_model_results` before forecasting. Compare the candidate "
+            "paths, their disagreement, and their past-only mean absolute errors. Produce your "
+            "own forecast rather than automatically selecting or averaging one model. You have "
+            "no news or web-search tools, so do not claim knowledge of market events not present "
+            "in the supplied data."
+        ),
+    )
+
+
 def build_copper_agent_predictor(config: AgentConfig) -> AgentPredictor:
     """Wrap a copper agent configuration in the standard predictor interface."""
     return AgentPredictor(
@@ -118,10 +158,25 @@ def build_copper_agent_predictor(config: AgentConfig) -> AgentPredictor:
     )
 
 
+def build_copper_model_panel_predictor(
+    config: AgentConfig,
+    model_panels: dict[str, list[dict[str, Any]]],
+) -> AgentPredictor:
+    """Wrap a model-panel configuration with its cutoff-keyed numerical results."""
+    return AgentPredictor(
+        agent_config=config,
+        prompt_builder=CopperModelPanelPromptBuilder(model_panels=model_panels),
+        output_schema=ContinuousAgentForecastOutput,
+    )
+
+
 __all__ = [
     "CopperForecastPromptBuilder",
+    "CopperModelPanelPromptBuilder",
     "build_copper_agent_predictor",
     "build_copper_basic_config",
+    "build_copper_model_panel_config",
+    "build_copper_model_panel_predictor",
     "build_copper_news_config",
     "compress_copper_history",
 ]

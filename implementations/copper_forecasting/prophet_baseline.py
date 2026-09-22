@@ -17,8 +17,9 @@ from prophet import Prophet
 class CopperProphetPredictor(Predictor):
     """Prophet trend and yearly-seasonality baseline for monthly copper prices."""
 
-    def __init__(self, *, interval_width: float = 0.80) -> None:
+    def __init__(self, *, interval_width: float = 0.80, min_history: int = 36) -> None:
         self._interval_width = interval_width
+        self._min_history = min_history
 
     @property
     def predictor_id(self) -> str:
@@ -27,7 +28,7 @@ class CopperProphetPredictor(Predictor):
     def predict(self, task: ForecastingTask, context: ForecastContext) -> list[Prediction]:
         """Fit through the information cutoff and forecast each requested horizon."""
         history = context.get_series(task.target_series_id)
-        if len(history) < 36:
+        if len(history) < self._min_history:
             return []
 
         training = history.loc[:, ["timestamp", "value"]].rename(columns={"timestamp": "ds", "value": "y"})
