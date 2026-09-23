@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -149,6 +150,25 @@ def build_copper_model_panel_config(model: str = LITE_MODEL) -> AgentConfig:
     )
 
 
+def build_copper_adaptive_config(strategy_dir: Path, model: str = LITE_MODEL) -> AgentConfig:
+    """Build a read-only adaptive analyst from a frozen strategy skill."""
+    strategy_name = strategy_dir.name
+    return AgentConfig(
+        name=f"copper_adaptive_analyst_{strategy_name.replace('-', '_')}",
+        model=model,
+        instruction=(
+            _analyst_instruction()
+            + f"\n\nLoad the `{strategy_name}` skill before forecasting and follow its current "
+            "approach and calibration corrections. Review `numerical_model_results`, including "
+            "past-only validation errors when present, before producing the forecast. This is a "
+            "protected evaluation: the strategy is read-only, so do not propose or claim strategy "
+            "updates from target-period outcomes. You have no news or web-search tools; do not "
+            "claim knowledge of market events not present in the supplied data."
+        ),
+        skills_dirs=[strategy_dir],
+    )
+
+
 def build_copper_agent_predictor(config: AgentConfig) -> AgentPredictor:
     """Wrap a copper agent configuration in the standard predictor interface."""
     return AgentPredictor(
@@ -170,9 +190,23 @@ def build_copper_model_panel_predictor(
     )
 
 
+def build_copper_adaptive_predictor(
+    config: AgentConfig,
+    model_panels: dict[str, list[dict[str, Any]]],
+) -> AgentPredictor:
+    """Wrap a frozen adaptive strategy with cutoff-safe numerical results."""
+    return AgentPredictor(
+        agent_config=config,
+        prompt_builder=CopperModelPanelPromptBuilder(model_panels=model_panels),
+        output_schema=ContinuousAgentForecastOutput,
+    )
+
+
 __all__ = [
     "CopperForecastPromptBuilder",
     "CopperModelPanelPromptBuilder",
+    "build_copper_adaptive_config",
+    "build_copper_adaptive_predictor",
     "build_copper_agent_predictor",
     "build_copper_basic_config",
     "build_copper_model_panel_config",

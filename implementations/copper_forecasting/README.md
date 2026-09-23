@@ -17,7 +17,8 @@ units, and frequencies separate:
 - [`02_copper_backtest_analysis.ipynb`](02_copper_backtest_analysis.ipynb)
 	compares six-month forecast paths in 2011, 2020, and 2026. Every method gets
 	exactly 24 monthly inputs, and the notebook emphasizes visual analysis,
-	plain-language metrics, method failures, and observed-versus-pending results.
+	plain-language metrics, method failures, observed-versus-pending results, and
+	optional frozen adaptive-strategy variants.
 
 The daily Yahoo series and monthly FRED series are not interchangeable. They
 have different units and update schedules, so they are never combined as one
@@ -57,7 +58,8 @@ It runs without a FRED key by default. Yahoo data is cached at
 	AutoARIMA, and Kalman forecasting;
 3. mean and median combinations of eligible numerical forecasts;
 4. a primary comparison of the best single statistical or naive method with
-	history-only, numerical-model-results, and cutoff-aware news agents;
+	history-only, numerical-model-results, cutoff-aware news, and optional frozen
+	adaptive-strategy agents;
 5. MAE, RMSE, sMAPE, MASE, bias, direction accuracy, CRPS, forecast-range
 	coverage, and interval-width definitions and scorecards; and
 6. one forecast-path plot per period showing the 24-month input context,
@@ -65,9 +67,14 @@ It runs without a FRED key by default. Yahoo data is cached at
 	rankings, a review of the global signals cited by the news agent, visible
 	failure diagnostics, and optional result exports.
 
-The numerical path runs from the local cache without model credentials. All
-three agents run in the saved main comparison and require configured model
-credentials; their individual switches can disable external calls when needed.
+The numerical path runs from the local cache without model credentials. The
+three stateless agents run in the saved main comparison and require configured
+model credentials; their individual switches can disable external calls when
+needed. Optional seed and trained adaptive variants load a frozen strategy skill
+and the same cutoff-safe numerical panel used by the model-results agent. They
+are read-only during evaluation, so the backtest cannot learn from its targets.
+The seed skill ships under `adaptive_agent/skills/copper-strategy/`; a trained
+skill is not fabricated or committed by this notebook.
 The 2011 and 2020 agent rows remain available for comparison but are marked
 clearly because a modern language model may have encountered descriptions of
 those historical outcomes during training.
@@ -99,7 +106,14 @@ The backtest-analysis notebook requires the same real FRED cache and does not
 substitute synthetic data. Its numerical methods and three agent approaches run
 in the main comparison by default. Set `RUN_HISTORY_AGENT`,
 `RUN_MODEL_PANEL_AGENT`, or `RUN_NEWS_AGENT` to `False` to skip individual
-external calls.
+external calls. Set `RUN_ADAPTIVE_SEED_AGENT=True` to add the shipped seed
+strategy. The notebook also enables an experimental frozen variant at
+`adaptive_agent/skills/copper-strategy-trained/SKILL.md`. It adds a possible
+rebound and wider uncertainty after a sudden fall, plus less aggressive trend
+flattening when validated trend models agree. Those rules were proposed from
+the same three displayed scenarios, so their comparison is in-sample analysis,
+not protected validation. Use fresh cutoffs to test whether the apparent lift
+generalizes.
 
 ## Layout
 
@@ -108,9 +122,12 @@ copper_forecasting/
 |-- 00_copper_data_exploration.ipynb  # daily Yahoo `HG=F` exploration
 |-- 01_copper_forecasting.ipynb  # end-to-end workflow
 |-- 02_copper_backtest_analysis.ipynb  # three-period six-month comparison
+|-- adaptive_agent/skills/
+|   |-- copper-strategy/SKILL.md          # frozen seed strategy
+|   `-- copper-strategy-trained/SKILL.md  # frozen experimental corrections
 |-- data.py                      # FRED-backed DataService registration
 |-- prophet_baseline.py          # monthly Prophet Predictor
-|-- agent.py                     # history, model-results, and news agents
+|-- agent.py                     # stateless agents and frozen adaptive strategy wiring
 `-- specs/copper_backtest.yaml   # quarterly-origin 2018-2024 backtest
 ```
 

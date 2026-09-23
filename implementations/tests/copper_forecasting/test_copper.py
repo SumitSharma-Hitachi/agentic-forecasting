@@ -8,6 +8,7 @@ import pandas as pd
 from aieng.forecasting.evaluation.task import ForecastingTask
 from copper_forecasting.agent import (
     CopperModelPanelPromptBuilder,
+    build_copper_adaptive_config,
     build_copper_model_panel_config,
     build_copper_news_config,
 )
@@ -102,6 +103,22 @@ def test_model_panel_agent_has_no_news_retrieval() -> None:
     config = build_copper_model_panel_config()
 
     assert config.context_retrieval.enabled is False
+
+
+def test_adaptive_strategy_is_frozen_during_protected_evaluation(tmp_path: Path) -> None:
+    seed_dir = tmp_path / "copper-strategy"
+    trained_dir = tmp_path / "copper-strategy-trained"
+    seed_dir.mkdir()
+    trained_dir.mkdir()
+
+    seed_config = build_copper_adaptive_config(seed_dir)
+    trained_config = build_copper_adaptive_config(trained_dir)
+
+    assert list(seed_config.skills_dirs) == [seed_dir]
+    assert seed_config.extra_tools == ()
+    assert seed_config.context_retrieval.enabled is False
+    assert "read-only" in seed_config.instruction
+    assert seed_config.name != trained_config.name
 
 
 def test_news_agent_reports_signals_used() -> None:
