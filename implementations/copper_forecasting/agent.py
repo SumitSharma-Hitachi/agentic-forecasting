@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, Literal
 
 import pandas as pd
 from aieng.forecasting.data.context import ForecastContext
@@ -66,8 +66,76 @@ class CopperModelPanelPromptBuilder(BaseModel):
             raise KeyError(f"No numerical model results were supplied for cutoff {cutoff}.") from exc
         payload["numerical_model_results_note"] = (
             "Each row contains a candidate forecast and, when available, its mean absolute error "
-            "on a six-month check period that ended before the cutoff. No news is included."
+            "on a six-month check period that ended at the cutoff. No target-period values or news are included."
         )
+        return json.dumps(payload, indent=2)
+
+
+class CopperNBSModelPanelPromptBuilder(CopperModelPanelPromptBuilder):
+    """Add Chinese fixed-asset history and its six-month relationship to copper."""
+
+    fixed_asset_history: list[dict[str, Any]]
+    six_month_correlation: float
+    correlation_pairs: int
+    nbs_signal_weight: Literal["standard", "high"] = "standard"
+
+    def __call__(self, *, task: ForecastingTask, context: ForecastContext) -> str:
+        payload = json.loads(super().__call__(task=task, context=context))
+        observed_growth = [
+            float(row["growth_yoy_percent"])
+            for row in self.fixed_asset_history
+            if row.get("growth_yoy_percent") is not None
+        ]
+        recent_growth = observed_growth[-6:]
+        recent_change = recent_growth[-1] - recent_growth[0]
+        trend = "falling" if recent_change < 0 else "rising" if recent_change > 0 else "flat"
+        if self.six_month_correlation < 0:
+            relationship_guidance = (
+                "The observed relationship is negative, so falling fixed-asset growth is a bullish "
+                "directional signal for the six-month copper price level and rising growth is bearish. "
+            )
+        elif self.six_month_correlation > 0:
+            relationship_guidance = (
+                "The observed relationship is positive, so rising fixed-asset growth is a bullish "
+                "directional signal for the six-month copper price level and falling growth is bearish. "
+            )
+        else:
+            relationship_guidance = (
+                "The observed relationship is zero, so fixed-asset growth supplies no directional "
+                "signal for the six-month copper price level. "
+            )
+        payload["chinese_nbs_fixed_asset_growth"] = {
+            "indicator": "Investment in Fixed Assets, Accumulated Growth Rate(%)",
+            "unit": "year-over-year percent",
+            "source": "National Bureau of Statistics of China",
+            "history": self.fixed_asset_history,
+            "signal_weight": self.nbs_signal_weight,
+            "recent_trend": {
+                "direction": trend,
+                "observations": len(recent_growth),
+                "first_growth_yoy_percent": recent_growth[0],
+                "latest_growth_yoy_percent": recent_growth[-1],
+                "change_percentage_points": recent_change,
+            },
+            "six_month_relationship": {
+                "definition": (
+                    "Pearson correlation between fixed-asset growth in month t and "
+                    "the cumulative copper price return from month t through month t+6"
+                ),
+                "correlation": self.six_month_correlation,
+                "pairs": self.correlation_pairs,
+                "guidance": (
+                    relationship_guidance
+                    + f"Apply {self.nbs_signal_weight} weight to this directional prior. Treat the relationship "
+                    "as descriptive, not causal, and do not linearly extrapolate its magnitude. Override it "
+                    "only when stronger cutoff-safe evidence supports the opposite direction."
+                ),
+            },
+            "availability_note": (
+                "The source file has observation months but no publication timestamps. Missing "
+                "months are null, and a one-month publication-lag assumption is used."
+            ),
+        }
         return json.dumps(payload, indent=2)
 
 
@@ -92,8 +160,10 @@ _SEARCH_INSTRUCTION = """\
 You are a copper market research specialist. Search for evidence available on or
 before the supplied cutoff date about copper mine supply and disruptions, LME/COMEX
 inventories, Chinese industrial demand, the US dollar, treatment charges, and
-published copper outlooks. Return a concise sourced summary. Exclude any fact that
-cannot be confidently placed on or before the cutoff date.
+published copper outlooks. For inventories, distinguish a change in globally
+available metal from geographic relocation caused by tariffs or arbitrage. Return a
+concise sourced summary with publication title, publisher, and date. Exclude any fact
+that cannot be confidently placed on or before the cutoff date.
 """
 
 _SEARCH_SUPPLEMENT = """\
@@ -101,10 +171,22 @@ _SEARCH_SUPPLEMENT = """\
 Call `search_web` before forecasting. Pass the payload's `as_of` value unchanged as
 `cutoff_date`. Search separately for (1) copper supply and inventories and (2) China
 demand, the US dollar, and current analyst outlooks. If verification fails, use only
-the supplied history and state that limitation in the rationale. In the top-level
-rationale, include a `Global signals used:` sentence that names each verified signal,
-its expected upward or downward effect on copper, its source, and its publication
-date. Do not list a signal unless it affected the forecast.
+the supplied history and state that limitation in the rationale.
+
+Build the forecast from the price-history path, then adjust it only for verified
+evidence. In the top-level rationale, include a `Global signals used:` section. For
+each signal, state the observed fact, whether it changes global supply/demand or only
+location/timing, its expected direction, the horizons it should affect, an approximate
+USD-per-metric-ton impact, confidence, publication title, publisher, and date. Do not
+list a signal unless it affected the forecast.
+
+Do not count related observations as independent evidence: for example, low treatment
+charges may confirm concentrate tightness already represented by a mine-supply signal.
+Do not interpret a tariff-driven transfer into US warehouses as a global inventory
+surplus without evidence that total available stocks increased. Give near-term
+observable indicators more weight than structural multi-year narratives for this
+six-month task. Include an `Alternative interpretation:` sentence naming the strongest
+counter-case and explain why the final path gives it less weight.
 """
 
 
@@ -118,12 +200,23 @@ def build_copper_news_config(
     *,
     search_model: str = LITE_MODEL,
     verifier_model: str = ADVANCED_MODEL,
+    nbs_signal_weight: Literal["standard", "high"] = "standard",
 ) -> AgentConfig:
     """Build a copper analyst with cutoff-aware web context retrieval."""
+    nbs_instruction = ""
+    if nbs_signal_weight == "high":
+        nbs_instruction = (
+            "\n\nGive `chinese_nbs_fixed_asset_growth` high weight as a directional prior for "
+            "the six-month forecast. Apply the sign exactly as described in the supplied "
+            "`six_month_relationship.guidance`. Anchor on the cutoff price, state how this "
+            "prior changed the point forecast, and do not linearly extrapolate the correlation into "
+            "an implausible price change. Override the direction only for stronger cutoff-safe evidence, "
+            "and explain that evidence explicitly."
+        )
     return AgentConfig(
         name="copper_analyst_news",
         model=model,
-        instruction=_analyst_instruction() + _SEARCH_SUPPLEMENT,
+        instruction=_analyst_instruction() + _SEARCH_SUPPLEMENT + nbs_instruction,
         context_retrieval=ContextRetrievalConfig(
             enabled=True,
             instruction=_SEARCH_INSTRUCTION,
@@ -139,8 +232,7 @@ def build_copper_model_panel_config(model: str = LITE_MODEL) -> AgentConfig:
         name="copper_analyst_model_panel",
         model=model,
         instruction=(
-            _analyst_instruction()
-            + "\n\nReview `numerical_model_results` before forecasting. Compare the candidate "
+            _analyst_instruction() + "\n\nReview `numerical_model_results` before forecasting. Compare the candidate "
             "paths, their disagreement, and their past-only mean absolute errors. Produce your "
             "own forecast rather than automatically selecting or averaging one model. You have "
             "no news or web-search tools, so do not claim knowledge of market events not present "
@@ -170,13 +262,38 @@ def build_copper_model_panel_predictor(
     )
 
 
+def build_copper_nbs_model_panel_predictor(
+    config: AgentConfig,
+    model_panels: dict[str, list[dict[str, Any]]],
+    *,
+    fixed_asset_history: list[dict[str, Any]],
+    six_month_correlation: float,
+    correlation_pairs: int,
+    nbs_signal_weight: Literal["standard", "high"] = "standard",
+) -> AgentPredictor:
+    """Wrap a news agent with numerical and Chinese fixed-asset context."""
+    return AgentPredictor(
+        agent_config=config,
+        prompt_builder=CopperNBSModelPanelPromptBuilder(
+            model_panels=model_panels,
+            fixed_asset_history=fixed_asset_history,
+            six_month_correlation=six_month_correlation,
+            correlation_pairs=correlation_pairs,
+            nbs_signal_weight=nbs_signal_weight,
+        ),
+        output_schema=ContinuousAgentForecastOutput,
+    )
+
+
 __all__ = [
     "CopperForecastPromptBuilder",
     "CopperModelPanelPromptBuilder",
+    "CopperNBSModelPanelPromptBuilder",
     "build_copper_agent_predictor",
     "build_copper_basic_config",
     "build_copper_model_panel_config",
     "build_copper_model_panel_predictor",
+    "build_copper_nbs_model_panel_predictor",
     "build_copper_news_config",
     "compress_copper_history",
 ]

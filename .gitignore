@@ -37,6 +37,11 @@ wheels/
 /implementations/data/
 # implementation-level data caches (e.g. food_price_forecasting/data/)
 implementations/**/data/
+# Commit the source NBS panel used by the copper analysis, but keep other
+# copper data artifacts ignored.
+!implementations/copper_forecasting/data/
+implementations/copper_forecasting/data/*
+!implementations/copper_forecasting/data/chinese_nbs_dataset.json
 # Allow committed reference prediction outputs for reference implementations
 !implementations/energy_oil_forecasting/data/
 !implementations/energy_oil_forecasting/data/predictions/

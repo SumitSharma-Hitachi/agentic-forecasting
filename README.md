@@ -13,7 +13,7 @@ The repo has two layers. A small core library (`aieng.forecasting`) owns cutoff-
 | 2 | [Food price forecasting](implementations/food_price_forecasting/) | Multivariate Canadian food CPI in the style of Canada's Food Price Report (nine sub-indices, 12-month trajectory, avg/avg YoY) | Naive last-value, AutoARIMA; report-grounded LLM-Process (quantile grid and sampled trajectory) |
 | 3 | [Energy / oil](implementations/energy_oil_forecasting/) | Daily WTI crude under regime-breaking news (continuous trajectory, binary up-shock, scenario analysis) | Prophet, LLM-Process, news-grounded agent, code-executing agent, adaptive (curriculum-trained) agent |
 | 4 | [BoC rate decisions](implementations/boc_rate_decisions/) | Will the Bank of Canada cut, hold, or hike at its next meeting? (ordered categorical; binary cut-vs-not special case) | Climatological frequency, multinomial logistic, categorical LLM-Process, analyst agent; LLM-as-judge reasoning alignment |
-| 5 | [Copper price forecasting](implementations/copper_forecasting/) | Monthly global copper price from FRED (1–6-month paths) | Naive baselines, ETS, Holt, AutoReg, AutoARIMA, Kalman, Prophet, forecast combinations, history/model-results/news agents |
+| 5 | [Copper price forecasting](implementations/copper_forecasting/) | Monthly global copper price from FRED (1–6-month paths) | Naive baselines, ETS, Holt, AutoReg, AutoARIMA, Kalman, Prophet, forecast combinations, history/model-results/news agents, advanced January 2026 high-weight NBS six-month run, exploratory Chinese NBS lead/lag analysis |
 
 Also in this README: [Setup](#setup) · [Core concepts](#core-concepts) · [Repository layout](#repository-layout) · [Documentation](#documentation)
 
@@ -47,6 +47,9 @@ Use cases, methods, and links are in the [contents](#contents) table above. Each
 - **StatCan** — Canadian CPI and related macroeconomic series.
 - **FRED** — macroeconomic and commodity series.
 - **yfinance** — equities, indices, and commodity futures.
+- **China NBS** — an uploaded monthly activity panel used for exploratory copper
+  lead/lag analysis and one explicitly assumption-bound January 2026 agent run.
+  The source does not include release timestamps; the run assumes a one-month lag.
 
 Historical data is cached locally under `data/` and is not committed. Each implementation's README names the fetch script(s) it needs.
 
